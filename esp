@@ -1,12 +1,11 @@
--- Player Highlighter Script (Auto-refresh)
-
+-- Player ESP Highlighter
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 
 -- GUI Setup
 local gui = Instance.new("ScreenGui")
-gui.Name = "PlayerHighlighterGUI"
+gui.Name = "ESP_GUI"
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame", gui)
@@ -19,7 +18,7 @@ frame.Draggable = true
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1, -20, 0, 30)
 title.Position = UDim2.new(0, 10, 0, 10)
-title.Text = "Player Highlighter"
+title.Text = "Player ESP"
 title.TextColor3 = Color3.fromRGB(255,255,255)
 title.BackgroundTransparency = 1
 title.Font = Enum.Font.GothamBold
@@ -46,53 +45,62 @@ status.TextSize = 12
 
 -- State
 local ACTIVE = false
-local highlights = {}
-
--- Toggle function
 toggle.MouseButton1Click:Connect(function()
     ACTIVE = not ACTIVE
     toggle.Text = ACTIVE and "Deactivate" or "Activate"
     status.Text = ACTIVE and "Status: Active" or "Status: Inactive"
 end)
 
--- Function to refresh highlights
-local function refreshHighlights()
-    if not ACTIVE then
-        for _, h in pairs(highlights) do
-            h:Destroy()
-        end
-        highlights = {}
-        return
-    end
+-- Table to store highlights
+local highlights = {}
 
-    -- Remove highlights for players who left
-    for plr, h in pairs(highlights) do
-        if not plr.Parent or not plr.Character then
-            h:Destroy()
-            highlights[plr] = nil
-        end
-    end
+-- Function to create highlight
+local function createHighlight(character)
+    if not character then return end
+    if highlights[character] then return end
 
-    -- Add highlights for new players
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-            if not highlights[plr] then
-                local h = Instance.new("BoxHandleAdornment")
-                h.Adornee = plr.Character
-                h.AlwaysOnTop = true
-                h.ZIndex = 10
-                h.Size = Vector3.new(4,6,2)
-                h.Color = Color3.fromRGB(255,0,0)
-                h.Transparency = 0.5
-                h.Parent = workspace
-                highlights[plr] = h
-            end
-        end
+    local h = Instance.new("BoxHandleAdornment")
+    h.Adornee = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChildWhichIsA("BasePart")
+    if not h.Adornee then return end
+    h.AlwaysOnTop = true
+    h.ZIndex = 10
+    h.Size = Vector3.new(4,6,2)
+    h.Color = Color3.fromRGB(255,0,0)
+    h.Transparency = 0.5
+    h.Parent = workspace
+
+    highlights[character] = h
+end
+
+-- Function to remove highlight
+local function removeHighlight(character)
+    if highlights[character] then
+        highlights[character]:Destroy()
+        highlights[character] = nil
     end
 end
 
--- Run refresh every second
+-- Update highlights every second
 while true do
-    refreshHighlights()
+    if ACTIVE then
+        -- Remove highlights for players who left
+        for char, h in pairs(highlights) do
+            if not char.Parent then
+                removeHighlight(char)
+            end
+        end
+
+        -- Add highlights for current players
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= player and plr.Character then
+                createHighlight(plr.Character)
+            end
+        end
+    else
+        -- Remove all highlights if not active
+        for char, h in pairs(highlights) do
+            removeHighlight(char)
+        end
+    end
     wait(1)
 end
